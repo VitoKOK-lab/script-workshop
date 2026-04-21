@@ -1,15 +1,40 @@
 """
 每日腳本建議生成器
-使用 GitHub Models API（免費）讀取儀表板資料並生成10支腳本建議
+1. 抓取 TA 相關 RSS 熱門話題（女人迷、ETtoday娛樂、Google Trends TW、三立娛樂）
+2. 使用 GitHub Models API 結合熱門話題生成 10 支腳本建議
+3. 儲存話題紀錄到 data/trends.json，讓前端顯示「今日參考話題」
 """
-import os, json, urllib.request, urllib.error
+import os, json, urllib.request, urllib.error, xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
-DASHBOARD_URL = "https://raw.githubusercontent.com/VitoKOK-lab/meta-dashboard/main/data/videos.json"
-SCRIPTS_PATH  = "data/scripts.json"
+DASHBOARD_URL     = "https://raw.githubusercontent.com/VitoKOK-lab/meta-dashboard/main/data/videos.json"
+SCRIPTS_PATH      = "data/scripts.json"
+TRENDS_PATH       = "data/trends.json"
 GITHUB_MODELS_URL = "https://models.inference.ai.azure.com/chat/completions"
 
-# ── 主題框架（AI 失敗時的備用樣板） ───────────────────────────────────────────
+# ── TA 關鍵字過濾（保留跟35-55歲台灣女性有關的話題）──────────────────────────
+TA_KEYWORDS = [
+    '穿搭','時尚','美妝','保養','護膚','彩妝','香水',
+    '明星','韓劇','台劇','偶像劇','電影','歌手','演員',
+    '婚姻','愛情','感情','夫妻','媽媽','婆媳','家庭','孩子','親子',
+    '女性','女人','姊妹','閨蜜',
+    '珠寶','寶石','水晶','戒指','項鍊','手鍊','耳環',
+    '星座','塔羅','能量','風水',
+    '旅行','下午茶','美食','咖啡','甜點',
+    '健康','瘦身','養生','減重',
+    '職場','理財','投資','副業',
+    '流行','趨勢','話題','熱門',
+]
+
+# ── RSS 來源（全部 TA 相關）────────────────────────────────────────────────────
+RSS_SOURCES = [
+    ("Google Trends TW", "https://trends.google.com/trending/rss?geo=TW"),
+    ("女人迷",           "https://womany.net/feed"),
+    ("ETtoday 娛樂",     "https://star.ettoday.net/rss.xml"),
+    ("三立娛樂",         "https://www.setn.com/rss.aspx?NewsType=10"),
+]
+
+# ── 備用樣板（AI 全部失敗時用）────────────────────────────────────────────────
 FALLBACK_THEMES = [
     {"title":"婆婆說我買太多珠寶了","theme":"家庭幽默","type":"commerce",
      "hook":"「妳又在網路上買珠寶？」（老公偷偷點收藏）","outline":"婆婆念→老公護航→一起下單","why":"婆媳話題共鳴強，帶貨自然"},
@@ -33,6 +58,73 @@ FALLBACK_THEMES = [
      "hook":"她說珠寶是最好的資產之一","outline":"刻板印象破除→真實資料→選擇建議","why":"投資視角吸引理性消費者"},
 ]
 
+
+def fetch_trends():
+    """抓取今日 TA 相關熱門話題，回傳 (topics列表, sources列表, raw_items列表)"""
+    all_topics = []
+    sources_ok = []
+    raw_items   = []   # 用於存進 trends.json 供前端顯示
+
+    for name, url in RSS_SOURCES:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=12) as r:
+                content = r.read().decode("utf-8", errors="ignore")
+
+            root = ET.fromstring(content)
+            titles = []
+            for item in root.findall(".//item"):
+                el = item.find("title")
+                if el is not None and el.text:
+                    titles.append(el.text.strip())
+
+            # Google Trends：全部是搜尋關鍵字，直接取前 15 筆
+            if name == "Google Trends TW":
+                picked = titles[:15]
+            else:
+                # 其他來源過濾 TA 關鍵字
+                picked = [t for t in titles[:40] if any(kw in t for kw in TA_KEYWORDS)][:8]
+
+            if picked:
+                all_topics.extend(picked)
+                sources_ok.append(name)
+                for t in picked:
+                    raw_items.append({"source": name, "title": t})
+                print(f"[TREND] {name}: 抓到 {len(picked)} 則")
+            else:
+                print(f"[TREND] {name}: 無 TA 相關話題")
+
+        except Exception as e:
+            print(f"[WARN] {name} 抓取失敗: {e}")
+
+    return all_topics[:25], sources_ok, raw_items[:25]
+
+
+def save_trends(today, topics, sources, raw_items):
+    """儲存今日話題紀錄到 data/trends.json"""
+    try:
+        with open(TRENDS_PATH, "r", encoding="utf-8") as f:
+            tdb = json.load(f)
+    except Exception:
+        tdb = {"entries": []}
+
+    # 移除今日舊紀錄
+    tdb["entries"] = [e for e in tdb["entries"] if e.get("date") != today]
+
+    tdb["entries"].insert(0, {
+        "date":    today,
+        "sources": sources,
+        "topics":  topics,
+        "items":   raw_items,
+    })
+    tdb["entries"] = tdb["entries"][:30]  # 只保留最近 30 天
+    tdb["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    with open(TRENDS_PATH, "w", encoding="utf-8") as f:
+        json.dump(tdb, f, ensure_ascii=False, indent=2)
+    print(f"[TREND] 已儲存 {len(raw_items)} 則話題到 trends.json")
+
+
 def fetch_top_videos():
     """從儀表板抓取高分影片"""
     try:
@@ -46,12 +138,14 @@ def fetch_top_videos():
         print(f"[WARN] 無法取得儀表板資料: {e}")
         return []
 
-def build_context(top_videos):
+
+def build_video_context(top_videos):
     lines = []
     for i, v in enumerate(top_videos, 1):
         t = (v.get("title") or "")[:30]
         lines.append(f"{i}. {t} | {v.get('score',0)}分 | {v.get('type','')} | {v.get('plays',0):,}播")
     return "\n".join(lines) if lines else "（暫無資料）"
+
 
 def call_github_models(prompt, token):
     """呼叫 GitHub Models API"""
@@ -75,24 +169,30 @@ def call_github_models(prompt, token):
         result = json.loads(r.read().decode("utf-8"))
     return json.loads(result["choices"][0]["message"]["content"])
 
-def generate_with_ai(top_videos, token):
+
+def generate_with_ai(top_videos, trends_topics, token):
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    context = build_context(top_videos)
+    video_ctx  = build_video_context(top_videos)
+    trends_ctx = "\n".join([f"- {t}" for t in trends_topics]) if trends_topics else "（今日無法取得話題資料）"
+
     prompt = f"""你是泰熙爾珠寶品牌的短影音腳本總編輯。
 
 受眾（TA）：35-55歲台灣女性，有消費力，關注家庭關係、時尚穿搭、精緻生活、情感共鳴、珠寶/寶石。
 
-最近高分影片（參考成效好的方向）：
-{context}
+【今日台灣熱門話題（TA相關，來自女人迷/ETtoday娛樂/Google Trends）】
+{trends_ctx}
+
+【我們自己最近的高分影片（參考什麼方向有效）】
+{video_ctx}
 
 今日日期：{today}
 
-請生成10支今日短影片腳本建議（30-90秒）。
-不一定要跟珠寶直接相關，只要是同樣TA有興趣的話題都可以。
+請參考以上「今日熱門話題」，結合我們TA的喜好，生成10支今日短影片腳本建議（30-90秒）。
+優先把熱門話題角度轉化為適合TA的內容。不一定要跟珠寶直接相關，只要是同樣TA有興趣的方向都可以。
 每支都要有讓人忍不住繼續看的「前3秒鉤子」。
 
 回傳純JSON（不要加markdown）：
-{{"scripts":[{{"title":"片名（15字內）","theme":"主題（例：家庭幽默/能量寶石/穿搭教學）","type":"commerce或traffic","hook":"前3秒鉤子（20字內）","outline":"三段大綱（開場→中段→結尾，各一句）","why":"為什麼現在拍這個有效（20字）"}}]}}"""
+{{"scripts":[{{"title":"片名（15字內）","theme":"主題（例：家庭幽默/能量寶石/穿搭教學）","type":"commerce或traffic","hook":"前3秒鉤子（20字內）","outline":"三段大綱（開場→中段→結尾，各一句）","why":"為什麼現在拍這個有效（20字，可提到今日話題）"}}]}}"""
 
     try:
         result = call_github_models(prompt, token)
@@ -104,26 +204,28 @@ def generate_with_ai(top_videos, token):
         print(f"[WARN] GitHub Models 失敗: {e}，改用備用樣板")
     return None
 
+
 def make_script_entry(idx, s, today):
     return {
-        "id": f"{today.replace('-','')}-{idx:02d}",
-        "created_at": today,
-        "title": s.get("title", ""),
-        "theme": s.get("theme", ""),
-        "type": s.get("type", "traffic"),
-        "hook": s.get("hook", ""),
-        "outline": s.get("outline", ""),
-        "why": s.get("why", ""),
-        "full_script": "",
-        "status": "suggested",
-        "video_id": None,
-        "platform": None,
+        "id":           f"{today.replace('-','')}-{idx:02d}",
+        "created_at":   today,
+        "title":        s.get("title", ""),
+        "theme":        s.get("theme", ""),
+        "type":         s.get("type", "traffic"),
+        "hook":         s.get("hook", ""),
+        "outline":      s.get("outline", ""),
+        "why":          s.get("why", ""),
+        "full_script":  "",
+        "status":       "suggested",
+        "video_id":     None,
+        "platform":     None,
         "published_at": None,
-        "notes": "",
-        "tags": [],
-        "score": None,
-        "plays": None,
+        "notes":        "",
+        "tags":         [],
+        "score":        None,
+        "plays":        None,
     }
+
 
 def main():
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -150,11 +252,15 @@ def main():
         print(f"[SKIP] 今日（{today}）已有 {len(existing_today)} 支建議，跳過生成")
         return
 
-    # 抓高分影片
+    # ── 抓今日熱門話題 ──
+    trends_topics, sources_ok, raw_items = fetch_trends()
+    save_trends(today, trends_topics, sources_ok, raw_items)
+
+    # ── 抓高分影片 ──
     top_videos = fetch_top_videos()
 
-    # 生成建議
-    ai_scripts = generate_with_ai(top_videos, token) if token else None
+    # ── 生成腳本建議 ──
+    ai_scripts = generate_with_ai(top_videos, trends_topics, token) if token else None
     raw_list   = ai_scripts if ai_scripts else FALLBACK_THEMES
 
     new_entries = [make_script_entry(i + 1, s, today) for i, s in enumerate(raw_list[:10])]
@@ -168,8 +274,9 @@ def main():
     with open(SCRIPTS_PATH, "w", encoding="utf-8") as f:
         json.dump(db, f, ensure_ascii=False, indent=2)
 
-    src = "GitHub Models AI" if ai_scripts else "備用樣板"
+    src = "GitHub Models AI + 熱門話題" if ai_scripts else "備用樣板"
     print(f"[DONE] {today} 新增 {len(added)} 支腳本建議（{src}）")
+
 
 if __name__ == "__main__":
     main()

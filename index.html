@@ -42,6 +42,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
 .btn-teal{background:var(--teal);color:#fff}
 .btn-teal:hover{opacity:.85}
 
+/* ── 話題雷達 ── */
+.radar-bar{background:linear-gradient(135deg,rgba(13,148,136,.05),rgba(155,44,126,.05));border:1px solid rgba(13,148,136,.18);border-radius:6px;padding:12px 18px;margin:14px 0 6px;display:flex;flex-direction:column;gap:8px}
+.radar-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.radar-title{font-size:12px;font-weight:700;color:var(--teal);letter-spacing:.5px}
+.radar-date{font-size:11px;color:var(--muted)}
+.radar-sources{font-size:11px;color:var(--muted);margin-left:auto}
+.radar-chips{display:flex;flex-wrap:wrap;gap:6px}
+.radar-chip{background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--ink);line-height:1.4;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.radar-chip.hl{border-color:rgba(155,44,126,.3);background:rgba(155,44,126,.05);color:var(--pink)}
+.radar-empty{font-size:12px;color:var(--muted)}
+
 /* ── 腳本列表 ── */
 .script-list{padding:0 40px 60px;flex:1}
 .list-header{display:grid;grid-template-columns:130px 1fr 90px 120px 90px 70px;gap:12px;padding:10px 14px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-bottom:1px solid var(--border);margin-top:4px}
@@ -177,6 +188,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
   </div>
 
   <div class="script-list">
+    <div id="radarBar"></div>
     <div class="list-header">
       <div>狀態</div><div>片名</div><div>類型</div><div>主題</div><div>日期</div><div>成效分</div>
     </div>
@@ -304,10 +316,57 @@ async function syncFromGitHub(){
     DB = await r.json();
     localStorage.setItem('scripts_cache', JSON.stringify(DB));
     renderAll();
+    // 同時載入話題雷達
+    loadRadar(owner, repo);
     showToast('✅ 同步完成');
   } catch(e){
     showToast('❌ 同步失敗：' + e.message);
   }
+}
+
+async function loadRadar(owner, repo){
+  try{
+    const url = `https://raw.githubusercontent.com/${owner}/${repo}/main/data/trends.json?t=${Date.now()}`;
+    const r = await fetch(url);
+    if(!r.ok) return;
+    const tdb = await r.json();
+    const entries = tdb.entries || [];
+    if(!entries.length){ renderRadar(null); return; }
+    // 找今天或最近一筆
+    const today = new Date().toISOString().slice(0,10);
+    const entry = entries.find(e=>e.date===today) || entries[0];
+    renderRadar(entry);
+  } catch(e){
+    renderRadar(null);
+  }
+}
+
+function renderRadar(entry){
+  const el = document.getElementById('radarBar');
+  if(!entry || !entry.items || !entry.items.length){
+    el.innerHTML = '';
+    return;
+  }
+  const dateStr = entry.date || '';
+  const sources = (entry.sources || []).join('、') || '—';
+  const items   = entry.items || [];
+
+  // 最多顯示 16 個 chips，前 4 個高亮
+  const chips = items.slice(0,16).map((it,i)=>{
+    const hl = i < 4 ? ' hl' : '';
+    const lbl = it.title.length > 20 ? it.title.slice(0,20)+'…' : it.title;
+    return `<span class="radar-chip${hl}" title="${it.source}：${it.title}">${lbl}</span>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="radar-bar">
+      <div class="radar-head">
+        <span class="radar-title">📡 今日話題雷達</span>
+        <span class="radar-date">${dateStr}</span>
+        <span class="radar-sources">來源：${sources}</span>
+      </div>
+      <div class="radar-chips">${chips}</div>
+    </div>`;
 }
 
 function loadFromCache(){
