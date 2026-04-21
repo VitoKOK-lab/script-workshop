@@ -242,7 +242,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
     <div class="page-title" id="pageTitle">全部腳本</div>
     <div class="header-right">
       <span class="header-count" id="headerCount">0 支</span>
-      <button class="btn btn-ghost" onclick="openPromptModal()">🤖 叫 Claude 生成</button>
+      <button class="btn btn-ghost" onclick="openPasteModal()">📋 貼上 AI 內容</button>
       <button class="btn btn-primary" onclick="addNewScript()">+ 新增腳本</button>
     </div>
   </div>
@@ -285,29 +285,24 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
   </div>
 </div>
 
-<!-- ── 叫 Claude 生成 Modal ── -->
-<div class="modal-overlay" id="promptModal">
-  <div class="modal-box" style="width:560px">
-    <div class="modal-title">🤖 複製提示給 Claude</div>
-    <div class="modal-sub">複製以下提示，貼到 Claude 對話，拿到 JSON 後點「貼上 Claude 回覆」。</div>
-    <div class="prompt-box" id="promptText"></div>
-    <div class="modal-btns">
-      <button class="btn btn-ghost" onclick="closeModal('promptModal')">關閉</button>
-      <button class="btn btn-ghost" onclick="openPasteModal()">貼上 Claude 回覆</button>
-      <button class="btn btn-primary" onclick="copyPromptText()">複製提示</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── 貼上 Claude 回覆 Modal ── -->
+<!-- ── 貼上 AI 內容 Modal ── -->
 <div class="modal-overlay" id="pasteModal">
-  <div class="modal-box" style="width:560px">
-    <div class="modal-title">📋 貼上 Claude 的 JSON 回覆</div>
-    <div class="modal-sub">把 Claude 回覆的 JSON 貼到下方，系統會自動解析並加入腳本庫。</div>
-    <textarea id="pasteArea" style="width:100%;height:200px;padding:10px;border:1px solid var(--border);border-radius:4px;font-family:monospace;font-size:12px;resize:vertical;outline:none" placeholder='{"scripts":[...]}'></textarea>
+  <div class="modal-box" style="width:600px">
+    <div class="modal-title">📋 貼上 AI 討論內容</div>
+    <div class="modal-sub">把同事和 AI 討論出來的主題、腳本內容直接貼上，系統自動拆解成多支腳本並存入「備選」。<br>支援任何格式：條列式、段落、JSON 皆可。</div>
+    <textarea id="pasteArea" style="width:100%;height:260px;padding:12px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);font-size:14px;line-height:1.7;resize:vertical;outline:none;color:var(--ink)" placeholder="直接貼上 AI 回覆的任何內容，例如：
+
+1. 主題：婆媳珠寶大戰
+內容：婆婆嫌媳婦買太多珠寶，結果老公偷偷…
+
+2. 主題：30歲女人的覺醒
+這支影片從…
+
+或直接貼上完整討論都可以，系統會自動拆解。"></textarea>
+    <div id="pastePreview" style="font-size:13px;color:var(--muted);margin-top:8px;min-height:20px"></div>
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal('pasteModal')">取消</button>
-      <button class="btn btn-primary" onclick="importFromPaste()">匯入腳本</button>
+      <button class="btn btn-primary" onclick="importFromPaste()">📥 匯入到備選</button>
     </div>
   </div>
 </div>
@@ -745,71 +740,101 @@ ${TA_DESC}
 }
 
 // ── 叫 Claude 生成（整批10支） ────────────────────────────────────────────
-function buildBatchPrompt(){
-  const topScripts = (DB.scripts||[])
-    .filter(s=>s.status==='tracking'&&s.score)
-    .sort((a,b)=>(b.score||0)-(a.score||0)).slice(0,5);
-
-  const ref = topScripts.length
-    ? topScripts.map(s=>`· ${s.title} | ${s.score}分 | ${s.plays?.toLocaleString()}播`).join('\n')
-    : '（尚無成效資料）';
-
-  return `你是泰熙爾珠寶品牌的短影音腳本總編輯。
-
-${TA_DESC}
-
-過去高分腳本參考：
-${ref}
-
-今日日期：${today()}
-
-請生成10支今日短影片腳本建議（30-90秒）。
-不一定要跟珠寶直接相關，只要是同樣TA有興趣的話題都可以。
-每支都要有讓人忍不住繼續看的「前3秒鉤子」。
-
-回傳格式（純JSON，不要加markdown或說明）：
-{"scripts":[{"title":"片名（15字內）","theme":"主題","type":"commerce或traffic","hook":"前3秒鉤子（20字內）","outline":"開場→中段→結尾（各一句）","why":"為什麼現在拍這個有效（20字）"}]}`;
+function openPasteModal(){
+  openModal('pasteModal');
+  document.getElementById('pasteArea').value='';
+  document.getElementById('pastePreview').textContent='';
+  setTimeout(()=>document.getElementById('pasteArea').focus(),100);
 }
 
-function openPromptModal(){
-  document.getElementById('promptText').textContent = buildBatchPrompt();
-  openModal('promptModal');
-}
+// 自動預覽：偵測會拆出幾支
+document.addEventListener('DOMContentLoaded',()=>{
+  const ta = document.getElementById('pasteArea');
+  if(ta) ta.addEventListener('input',()=>{
+    const blocks = parseAiText(ta.value);
+    const el = document.getElementById('pastePreview');
+    if(el) el.textContent = blocks.length ? `偵測到 ${blocks.length} 支腳本，匯入後進入「備選」` : '';
+  });
+});
 
-function copyPromptText(){
-  const txt = document.getElementById('promptText').textContent;
-  navigator.clipboard.writeText(txt).then(()=>showToast('✅ 提示已複製'));
-}
+function parseAiText(raw){
+  if(!raw.trim()) return [];
 
-function openPasteModal(){ closeModal('promptModal'); openModal('pasteModal'); }
+  // ① 嘗試 JSON
+  try{
+    const j = JSON.parse(raw);
+    const list = j.scripts || j;
+    if(Array.isArray(list) && list.length) return list.map(s=>({
+      title:   s.title||s.片名||'',
+      theme:   s.theme||s.主題||'',
+      type:    s.type||s.類型||'traffic',
+      hook:    s.hook||s.鉤子||s.前3秒||'',
+      outline: s.outline||s.大綱||'',
+      why:     s.why||s.原因||'',
+      full_script: s.full_script||s.腳本||s.內容||'',
+    }));
+  } catch(_){}
+
+  // ② 自由文字：用數字標號、---、##、「主題：」等切割
+  const blocks = raw
+    .split(/\n(?=\s*(?:\d+[\.\、\)]\s|##\s|主題[:：]|片名[:：]|---+))/m)
+    .map(b=>b.trim()).filter(b=>b.length>10);
+
+  if(blocks.length >= 2){
+    return blocks.map(block=>{
+      // 嘗試從 block 中提取欄位
+      const titleMatch = block.match(/(?:片名|標題|主題|題目)[:：]\s*(.+)/);
+      const hookMatch  = block.match(/(?:鉤子|前3秒|開場|hook)[:：]\s*(.+)/i);
+      const themeMatch = block.match(/(?:主題|類型|theme)[:：]\s*(.+)/);
+      // 若沒有明確欄位，取第一行作為標題
+      const firstLine  = block.split('\n')[0].replace(/^\d+[\.\、\)]\s*/, '').replace(/^#+\s*/,'').trim();
+      return {
+        title:       (titleMatch?.[1]||firstLine||'').slice(0,30),
+        theme:       themeMatch?.[1]?.slice(0,20)||'',
+        type:        /帶貨|commerce|商品|珠寶|購買/.test(block)?'commerce':'traffic',
+        hook:        hookMatch?.[1]?.slice(0,40)||'',
+        outline:     '',
+        why:         '',
+        full_script: block,
+      };
+    });
+  }
+
+  // ③ 整段當一支腳本
+  const firstLine = raw.split('\n')[0].replace(/^\d+[\.\、\)]\s*/,'').trim();
+  return [{
+    title: firstLine.slice(0,30)||'貼上內容',
+    theme:'', type:'traffic', hook:'', outline:'', why:'',
+    full_script: raw,
+  }];
+}
 
 function importFromPaste(){
   const raw = document.getElementById('pasteArea').value.trim();
-  let parsed;
-  try{ parsed = JSON.parse(raw); } catch(e){ showToast('❌ 格式錯誤，請貼上純 JSON'); return; }
-  const list = parsed.scripts||parsed;
-  if(!Array.isArray(list)||!list.length){ showToast('❌ 找不到腳本陣列'); return; }
-  const existIds = new Set((DB.scripts||[]).map(s=>s.id));
-  const newEntries = list.map((s,i)=>{
-    const id = genId();
-    return {
-      id, created_at: today(),
-      title: s.title||'', theme: s.theme||'', type: s.type||'traffic',
-      hook: s.hook||'', outline: s.outline||'', why: s.why||'',
-      full_script:'', status:'suggested', video_id:null,
-      platform:null, published_at:null, notes:'', tags:[],
-      score:null, plays:null
-    };
-  });
+  if(!raw){ showToast('請先貼上內容'); return; }
+  const list = parseAiText(raw);
+  if(!list.length){ showToast('❌ 無法解析內容'); return; }
+
+  const newEntries = list.map(s=>({
+    id: genId(), created_at: today(),
+    title: s.title||'', theme: s.theme||'', type: s.type||'traffic',
+    hook: s.hook||'', outline: s.outline||'', why: s.why||'',
+    full_script: s.full_script||'',
+    status: 'reserve',   // ← 全部進備選
+    video_id:null, platform:null, published_at:null,
+    notes:'', tags:[], score:null, plays:null
+  }));
+
   DB.scripts = [...newEntries, ...DB.scripts];
   closeModal('pasteModal');
   document.getElementById('pasteArea').value='';
-  currentFilter='suggested';
+  currentFilter='reserve';
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.querySelector('[data-filter="suggested"]').classList.add('active');
+  document.querySelector('[data-filter="reserve"]').classList.add('active');
   renderAll();
-  showToast(`✅ 匯入 ${newEntries.length} 支腳本建議`);
-  unsaved = true;
+  saveToGitHub();
+  showToast(`✅ 已匯入 ${newEntries.length} 支腳本到備選`);
+  unsaved = false;
 }
 
 // ── 初始化 ────────────────────────────────────────────────────────────────
