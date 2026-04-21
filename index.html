@@ -366,19 +366,15 @@ document.addEventListener('click', function(e){
 
 // ── 載入資料 ──────────────────────────────────────────────────────────────
 async function syncFromGitHub(){
-  const owner = localStorage.getItem('gh_owner');
-  const repo  = localStorage.getItem('gh_repo');
-  if(!owner||!repo){ showToast('⚠️ 請先設定 GitHub 資訊'); openSettings(); return; }
   showToast('☁ 同步中…');
   try{
-    const url = `https://raw.githubusercontent.com/${owner}/${repo}/main/data/scripts.json?t=${Date.now()}`;
+    const url = `https://raw.githubusercontent.com/${getOwner()}/${getRepo()}/main/data/scripts.json?t=${Date.now()}`;
     const r = await fetch(url);
     if(!r.ok) throw new Error(r.status);
     DB = await r.json();
     localStorage.setItem('scripts_cache', JSON.stringify(DB));
     renderAll();
-    // 同時載入話題雷達
-    loadRadar(owner, repo);
+    loadRadar(getOwner(), getRepo());
     showToast('✅ 同步完成');
   } catch(e){
     showToast('❌ 同步失敗：' + e.message);
@@ -439,9 +435,9 @@ function loadFromCache(){
 // ── 儲存到 GitHub ─────────────────────────────────────────────────────────
 async function saveToGitHub(){
   const token = localStorage.getItem('gh_token');
-  const owner = localStorage.getItem('gh_owner');
-  const repo  = localStorage.getItem('gh_repo');
-  if(!token||!owner||!repo){ showToast('⚠️ 請先設定 GitHub Token'); openSettings(); return false; }
+  if(!token){ showToast('⚠️ 請先設定 GitHub Token 才能儲存'); openSettings(); return false; }
+  const owner = getOwner();
+  const repo  = getRepo();
   showToast('☁ 儲存中…');
   try{
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/data/scripts.json`;
@@ -794,13 +790,30 @@ function importFromPaste(){
 }
 
 // ── 初始化 ────────────────────────────────────────────────────────────────
+// 預設 repo（公開，讀取不需要 token，任何裝置開啟都能自動同步）
+const DEFAULT_OWNER = 'VitoKOK-lab';
+const DEFAULT_REPO  = 'script-workshop';
+
+function getOwner(){ return localStorage.getItem('gh_owner') || DEFAULT_OWNER; }
+function getRepo(){  return localStorage.getItem('gh_repo')  || DEFAULT_REPO; }
+
 window.addEventListener('DOMContentLoaded', ()=>{
   loadFromCache();
-  // 有設定的話自動同步
-  if(localStorage.getItem('gh_owner') && localStorage.getItem('gh_repo')){
-    syncFromGitHub();
-  }
+  // 永遠自動從 GitHub 抓最新資料（公開 repo，不需要 token）
+  autoSync();
 });
+
+async function autoSync(){
+  try{
+    const url = `https://raw.githubusercontent.com/${getOwner()}/${getRepo()}/main/data/scripts.json?t=${Date.now()}`;
+    const r = await fetch(url);
+    if(!r.ok) return;
+    DB = await r.json();
+    localStorage.setItem('scripts_cache', JSON.stringify(DB));
+    renderAll();
+    loadRadar(getOwner(), getRepo());
+  } catch(e){ /* 靜默失敗，已有 cache */ }
+}
 
 window.addEventListener('beforeunload', e=>{
   if(unsaved){ e.preventDefault(); e.returnValue=''; }
