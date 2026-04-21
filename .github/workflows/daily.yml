@@ -29,7 +29,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${{ github.event.inputs.force }}" = "true" ]; then
-            python -c "
+            python - <<'PYEOF'
 import json
 with open('data/scripts.json','r') as f: db=json.load(f)
 from datetime import datetime,timezone
@@ -37,7 +37,7 @@ today=datetime.now(timezone.utc).strftime('%Y-%m-%d')
 db['scripts']=[s for s in db['scripts'] if s.get('created_at')!=today or s.get('status')!='suggested']
 with open('data/scripts.json','w') as f: json.dump(db,f,ensure_ascii=False,indent=2)
 print('已清除今日建議，強制重新生成')
-"
+PYEOF
           fi
           python generate_scripts.py
 
