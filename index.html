@@ -21,6 +21,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
 .sidebar-logo span{font-size:22px}
 .sidebar-section{padding:10px 8px 4px;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
 .nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:4px;cursor:pointer;color:var(--ink);font-size:15px;transition:background .15s;margin:1px 4px}
+.nav-scroll{display:flex;flex-direction:column}
 .nav-item:hover{background:var(--hover)}
 .nav-item.active{background:rgba(55,53,47,.08);font-weight:600}
 .nav-count{margin-left:auto;font-size:13px;color:var(--muted);background:var(--border);border-radius:10px;padding:1px 7px}
@@ -154,15 +155,60 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
 /* ── 提示複製框 ── */
 .prompt-box{background:var(--off);border:1px solid var(--border);border-radius:6px;padding:14px;font-size:14px;line-height:1.9;white-space:pre-wrap;max-height:300px;overflow-y:auto;word-break:break-all;margin:10px 0}
 
+/* ── tablet ── */
+@media(max-width:900px){
+  :root{--sidebar-w:180px}
+  .script-list{padding:0 20px 60px}
+  .page-header{padding:20px 20px 14px}
+}
+
 /* ── mobile ── */
 @media(max-width:640px){
-  .sidebar{width:100%;height:auto;position:static;flex-direction:row;border-right:none;border-bottom:1px solid var(--border);overflow-x:auto}
-  .main{margin-left:0}
-  .script-list{padding:0 16px 60px}
-  .script-editor{padding:16px}
-  .page-header{padding:16px 16px 12px}
+  :root{--sidebar-w:0px}
+  body{flex-direction:column}
+  .sidebar{
+    width:100%;height:auto;position:static;
+    flex-direction:column;border-right:none;
+    border-bottom:1px solid var(--border);
+    overflow-x:hidden;z-index:10
+  }
+  .sidebar-logo{padding:14px 14px 10px}
+  .sidebar-section{padding:8px 10px 2px}
+  /* nav items 横排 scroll */
+  .sidebar > .nav-item{
+    display:inline-flex;white-space:nowrap;
+    margin:2px 4px;padding:6px 10px
+  }
+  /* 讓 nav 可以橫排捲動 */
+  .sidebar{display:flex;flex-direction:column}
+  .nav-scroll{display:flex;overflow-x:auto;flex-wrap:nowrap;padding:4px 8px 8px;gap:4px;-webkit-overflow-scrolling:touch}
+  .nav-scroll .nav-item{flex-shrink:0;margin:0}
+  .sidebar-footer{flex-direction:row;flex-wrap:wrap;padding:8px;gap:6px;border-top:1px solid var(--border)}
+  .sidebar-btn{width:auto;padding:6px 12px}
+  .main{margin-left:0;width:100%}
+  .page-header{padding:14px 14px 10px;flex-wrap:wrap;gap:8px}
+  .page-title{font-size:20px}
+  .header-right{flex-wrap:wrap;gap:6px}
+  .header-right .btn{font-size:13px;padding:6px 10px}
+  .script-list{padding:0 10px 80px}
   .list-header{display:none}
-  .row-main{grid-template-columns:1fr;gap:4px;padding:12px 10px}
+  .row-main{
+    display:flex;flex-wrap:wrap;gap:6px;
+    padding:12px 10px;align-items:flex-start
+  }
+  .row-title{font-size:15px;font-weight:600;flex:1 1 100%;white-space:normal}
+  .row-theme{font-size:13px;order:3}
+  .row-date{font-size:12px;order:4;color:var(--muted)}
+  .row-score{font-size:13px;order:5}
+  .row-actions{opacity:1;order:6;margin-left:0;width:100%;justify-content:flex-end}
+  .script-editor{padding:14px 12px}
+  .editor-top-row{flex-direction:column;gap:10px}
+  .editor-title-input{min-width:100%;width:100%}
+  .editor-text-input{min-width:100%;width:100%}
+  .editor-footer{flex-wrap:wrap;gap:8px}
+  .modal-box{padding:20px 16px;width:94vw}
+  .radar-bar{margin:10px 0 4px}
+  .radar-sources{margin-left:0;width:100%}
 }
 </style>
 </head>
@@ -173,14 +219,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
   <div class="sidebar-logo"><span>✍️</span>腳本工作室</div>
 
   <div class="sidebar-section">腳本狀態</div>
-  <div class="nav-item active" data-filter="all" onclick="setFilter('all',this)">📋 全部腳本<span class="nav-count" id="cnt-all">0</span></div>
-  <div class="nav-item" data-filter="suggested" onclick="setFilter('suggested',this)">💡 今日建議<span class="nav-count" id="cnt-suggested">0</span></div>
-  <div class="nav-item" data-filter="reserve" onclick="setFilter('reserve',this)">🗂 備選<span class="nav-count" id="cnt-reserve">0</span></div>
-  <div class="nav-item" data-filter="draft" onclick="setFilter('draft',this)">✏️ 草稿<span class="nav-count" id="cnt-draft">0</span></div>
-  <div class="nav-item" data-filter="approved" onclick="setFilter('approved',this)">✅ 確認<span class="nav-count" id="cnt-approved">0</span></div>
-  <div class="nav-item" data-filter="filming" onclick="setFilter('filming',this)">🎬 拍攝中<span class="nav-count" id="cnt-filming">0</span></div>
-  <div class="nav-item" data-filter="published" onclick="setFilter('published',this)">📹 已發布<span class="nav-count" id="cnt-published">0</span></div>
-  <div class="nav-item" data-filter="tracking" onclick="setFilter('tracking',this)">📊 追蹤中<span class="nav-count" id="cnt-tracking">0</span></div>
+  <div class="nav-scroll">
+    <div class="nav-item active" data-filter="all" onclick="setFilter('all',this)">📋 全部腳本<span class="nav-count" id="cnt-all">0</span></div>
+    <div class="nav-item" data-filter="suggested" onclick="setFilter('suggested',this)">💡 今日建議<span class="nav-count" id="cnt-suggested">0</span></div>
+    <div class="nav-item" data-filter="reserve" onclick="setFilter('reserve',this)">🗂 備選<span class="nav-count" id="cnt-reserve">0</span></div>
+    <div class="nav-item" data-filter="draft" onclick="setFilter('draft',this)">✏️ 草稿<span class="nav-count" id="cnt-draft">0</span></div>
+    <div class="nav-item" data-filter="approved" onclick="setFilter('approved',this)">✅ 確認<span class="nav-count" id="cnt-approved">0</span></div>
+    <div class="nav-item" data-filter="filming" onclick="setFilter('filming',this)">🎬 拍攝中<span class="nav-count" id="cnt-filming">0</span></div>
+    <div class="nav-item" data-filter="published" onclick="setFilter('published',this)">📹 已發布<span class="nav-count" id="cnt-published">0</span></div>
+    <div class="nav-item" data-filter="tracking" onclick="setFilter('tracking',this)">📊 追蹤中<span class="nav-count" id="cnt-tracking">0</span></div>
+  </div>
 
   <div class="sidebar-footer">
     <button class="sidebar-btn" onclick="syncFromGitHub()">☁ 從 GitHub 同步</button>
