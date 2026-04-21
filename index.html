@@ -232,6 +232,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
 
   <div class="sidebar-footer">
     <button class="sidebar-btn" onclick="syncFromGitHub()">☁ 從 GitHub 同步</button>
+    <button class="sidebar-btn" id="undoBtn" onclick="undoRestore()" style="display:none;color:var(--warn)">↩️ 復原上一步</button>
     <button class="sidebar-btn" onclick="openSettings()">⚙ 設定</button>
   </div>
 </aside>
@@ -285,6 +286,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
   </div>
 </div>
 
+<!-- ── AI 修順 Modal ── -->
+<div class="modal-overlay" id="polishModal">
+  <div class="modal-box" style="width:600px">
+    <div class="modal-title">✨ AI 修順腳本</div>
+    <div class="modal-sub">已複製提示到剪貼簿，貼到 Claude 或任何 AI，拿到修順結果後貼到下方套用。</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:6px">① 提示已複製 → ② 貼到 AI → ③ 把 AI 結果貼到這裡</div>
+    <textarea id="polishResult" style="width:100%;height:200px;padding:12px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);font-size:14px;line-height:1.7;resize:vertical;outline:none;color:var(--ink)" placeholder="把 AI 修順後的腳本貼到這裡…"></textarea>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('polishModal')">取消</button>
+      <button class="btn btn-ghost" onclick="copyPolishPrompt()">🔁 重新複製提示</button>
+      <button class="btn btn-primary" onclick="applyPolish()">✅ 套用修順結果</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── 貼上 AI 內容 Modal ── -->
 <div class="modal-overlay" id="pasteModal">
   <div class="modal-box" style="width:600px">
@@ -326,6 +342,8 @@ let DB = { version:'1.0', scripts:[] };
 let currentFilter = 'all';
 let expandedId = null;
 let unsaved = false;
+let undoStack = [];   // 最多10個快照
+let polishTargetId = null;  // 目前正在修順的腳本 id
 
 // ── 工具函數 ──────────────────────────────────────────────────────────────
 function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -588,6 +606,7 @@ function renderEditor(s){
       <span class="word-count" id="wc-${s.id}">${countChars(s.full_script)} 字</span>
       <button class="btn btn-ghost" onclick="copyScriptText('${s.id}')">複製腳本</button>
       <button class="btn btn-ghost" onclick="copyScriptPrompt('${s.id}')">🤖 叫 Claude 寫完整腳本</button>
+      <button class="btn btn-ghost" style="color:var(--teal)" onclick="openPolish('${s.id}')">✨ AI 修順</button>
       <button class="btn btn-ghost" style="color:var(--warn)" onclick="deleteScript('${s.id}')">刪除</button>
       <button class="btn btn-teal" onclick="saveToGitHub()">☁ 儲存</button>
     </div>
@@ -685,6 +704,7 @@ function rejectScript(id){
   const s = DB.scripts.find(x=>x.id===id);
   if(!s) return;
   if(!confirm(`確定要標記「${s.title||'此腳本'}」為不適合嗎？\n系統會記住這個方向，未來避免類似腳本。`)) return;
+  pushUndo();
   // 記錄到 rejects
   if(!DB.rejects) DB.rejects = [];
   DB.rejects.push({
@@ -703,13 +723,98 @@ function rejectScript(id){
   showToast('❌ 已記錄，AI 將避免類似方向');
 }
 
+// ── 復原系統 ──────────────────────────────────────────────────────────────
+function pushUndo(){
+  undoStack.push(JSON.stringify(DB));
+  if(undoStack.length > 10) undoStack.shift();
+  // 同步存到 localStorage（頁面重整後也能復原）
+  try{ localStorage.setItem('undo_stack', JSON.stringify(undoStack.slice(-3))); }catch(_){}
+  document.getElementById('undoBtn').style.display = '';
+}
+
+function undoRestore(){
+  if(!undoStack.length){
+    // 試著從 localStorage 恢復
+    try{
+      const saved = JSON.parse(localStorage.getItem('undo_stack')||'[]');
+      if(saved.length) undoStack = saved;
+    }catch(_){}
+  }
+  if(!undoStack.length){ showToast('沒有可復原的操作'); return; }
+  const prev = undoStack.pop();
+  try{
+    DB = JSON.parse(prev);
+    if(!undoStack.length) document.getElementById('undoBtn').style.display='none';
+    renderAll();
+    showToast('↩️ 已復原到上一步');
+    unsaved = true;
+  }catch(e){ showToast('復原失敗'); }
+}
+
 function deleteScript(id){
   if(!confirm('確定要刪除這支腳本嗎？')) return;
+  pushUndo();
   DB.scripts = DB.scripts.filter(s=>s.id!==id);
   expandedId = null;
   unsaved = true;
   renderAll();
-  showToast('已刪除');
+  showToast('已刪除　　↩️ 可復原');
+}
+
+// ── AI 修順 ───────────────────────────────────────────────────────────────
+function openPolish(id){
+  const s = DB.scripts.find(x=>x.id===id);
+  if(!s){ showToast('找不到腳本'); return; }
+  if(!s.full_script){ showToast('腳本是空的，請先填入內容'); return; }
+  polishTargetId = id;
+  document.getElementById('polishResult').value = '';
+  copyPolishPrompt();
+  openModal('polishModal');
+}
+
+function buildPolishPrompt(){
+  const s = DB.scripts.find(x=>x.id===polishTargetId);
+  if(!s) return '';
+  return `你是短影音腳本編輯，請幫我修順以下腳本。
+
+要求：
+1. 保持原意和核心內容不變
+2. 語氣更自然流暢，像真人說話
+3. 句子更短，易懂，適合直接唸出來拍攝
+4. 不要加任何說明，直接輸出修順後的腳本正文
+
+受眾：35-55歲台灣女性，有消費力，關注家庭、時尚、珠寶、精緻生活。
+
+片名：${s.title||''}
+主題：${s.theme||''}
+
+原始腳本：
+${s.full_script}`;
+}
+
+function copyPolishPrompt(){
+  const prompt = buildPolishPrompt();
+  if(!prompt) return;
+  navigator.clipboard.writeText(prompt).then(()=>showToast('✅ 提示已複製，請貼到 Claude 或其他 AI'));
+}
+
+function applyPolish(){
+  const result = document.getElementById('polishResult').value.trim();
+  if(!result){ showToast('請先貼上 AI 修順的結果'); return; }
+  const s = DB.scripts.find(x=>x.id===polishTargetId);
+  if(!s){ showToast('找不到腳本'); return; }
+  pushUndo();
+  s.full_script = result;
+  unsaved = true;
+  closeModal('polishModal');
+  renderAll();
+  // 保持展開狀態
+  expandedId = polishTargetId;
+  renderAll();
+  // 更新字數
+  const wc = document.getElementById('wc-'+polishTargetId);
+  if(wc) wc.textContent = countChars(result)+' 字';
+  showToast('✅ 修順結果已套用');
 }
 
 function copyScriptText(id){
