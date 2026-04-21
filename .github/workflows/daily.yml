@@ -1,0 +1,94 @@
+name: 每日腳本建議
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # 台灣時間 08:00 每天
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '強制重新生成（忽略今日已有建議）'
+        type: boolean
+        default: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      models: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 生成今日腳本建議
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            python -c "
+import json
+with open('data/scripts.json','r') as f: db=json.load(f)
+from datetime import datetime,timezone
+today=datetime.now(timezone.utc).strftime('%Y-%m-%d')
+db['scripts']=[s for s in db['scripts'] if s.get('created_at')!=today or s.get('status')!='suggested']
+with open('data/scripts.json','w') as f: json.dump(db,f,ensure_ascii=False,indent=2)
+print('已清除今日建議，強制重新生成')
+"
+          fi
+          python generate_scripts.py
+
+      - name: 更新已發布腳本的成效資料
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python - <<'EOF'
+import json, urllib.request
+
+# 讀腳本庫
+with open('data/scripts.json','r',encoding='utf-8') as f:
+    db = json.load(f)
+
+# 抓儀表板影片資料
+try:
+    req = urllib.request.Request(
+        'https://raw.githubusercontent.com/VitoKOK-lab/meta-dashboard/main/data/videos.json',
+        headers={"User-Agent":"Mozilla/5.0"}
+    )
+    with urllib.request.urlopen(req, timeout=15) as r:
+        vdata = json.load(r)
+    videos = vdata.get('videos', {})
+except Exception as e:
+    print(f'無法取得影片資料: {e}')
+    videos = {}
+
+# 同步成效
+updated = 0
+for s in db['scripts']:
+    vid_id = s.get('video_id')
+    if vid_id and vid_id in videos:
+        v = videos[vid_id]
+        s['score'] = v.get('score')
+        s['plays'] = v.get('plays')
+        if s['status'] == 'published':
+            s['status'] = 'tracking'
+        updated += 1
+
+if updated:
+    with open('data/scripts.json','w',encoding='utf-8') as f:
+        json.dump(db, f, ensure_ascii=False, indent=2)
+    print(f'已同步 {updated} 支腳本成效')
+else:
+    print('無需同步')
+EOF
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/scripts.json
+          git diff --cached --quiet || git commit -m "scripts $(date +'%Y-%m-%d')"
+          git push

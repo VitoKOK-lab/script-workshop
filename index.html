@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>✍️ 腳本工作室</title>
+<style>
+:root{
+  --bg:#ffffff;--sidebar:#f7f7f5;--off:#fafaf9;
+  --ink:#37352f;--muted:#9b9b9b;--border:#e9e9e7;--hover:#f1f1ef;
+  --pink:#9b2c7e;--teal:#0d9488;--gold:#b5924e;--warn:#be3a67;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;
+  --sidebar-w:220px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;min-height:100vh;font-size:14px;line-height:1.5}
+
+/* ── 側邊欄 ── */
+.sidebar{width:var(--sidebar-w);background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;overflow-y:auto}
+.sidebar-logo{padding:20px 16px 14px;font-size:15px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.sidebar-logo span{font-size:20px}
+.sidebar-section{padding:10px 8px 4px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+.nav-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:4px;cursor:pointer;color:var(--ink);font-size:13px;transition:background .15s;margin:1px 4px}
+.nav-item:hover{background:var(--hover)}
+.nav-item.active{background:rgba(55,53,47,.08);font-weight:600}
+.nav-count{margin-left:auto;font-size:11px;color:var(--muted);background:var(--border);border-radius:10px;padding:1px 7px}
+.sidebar-footer{margin-top:auto;padding:12px 8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:4px}
+.sidebar-btn{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;cursor:pointer;font-size:13px;color:var(--muted);background:none;border:none;font-family:var(--font);width:100%;transition:all .15s}
+.sidebar-btn:hover{background:var(--hover);color:var(--ink)}
+
+/* ── 主區域 ── */
+.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.page-header{padding:28px 40px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:16px}
+.page-title{font-size:22px;font-weight:700;color:var(--ink)}
+.header-right{display:flex;align-items:center;gap:10px}
+.header-count{font-size:13px;color:var(--muted)}
+.btn{padding:6px 14px;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);border:none;transition:all .15s}
+.btn-primary{background:var(--ink);color:#fff}
+.btn-primary:hover{background:#555}
+.btn-ghost{background:none;border:1px solid var(--border);color:var(--ink)}
+.btn-ghost:hover{background:var(--hover)}
+.btn-teal{background:var(--teal);color:#fff}
+.btn-teal:hover{opacity:.85}
+
+/* ── 腳本列表 ── */
+.script-list{padding:0 40px 60px;flex:1}
+.list-header{display:grid;grid-template-columns:130px 1fr 90px 120px 90px 70px;gap:12px;padding:8px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-bottom:1px solid var(--border);margin-top:4px}
+@media(max-width:900px){.list-header{grid-template-columns:110px 1fr 70px}}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.empty-text{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.empty-sub{font-size:13px;color:var(--muted)}
+
+/* ── 腳本行 ── */
+.script-row{border-bottom:1px solid var(--border)}
+.row-main{display:grid;grid-template-columns:130px 1fr 90px 120px 90px 70px;gap:12px;padding:10px 14px;cursor:pointer;align-items:center;transition:background .12s}
+.row-main:hover{background:var(--hover)}
+@media(max-width:900px){
+  .row-main{grid-template-columns:110px 1fr 70px}
+  .row-main .row-theme,.row-main .row-date,.row-main .row-score{display:none}
+}
+.row-title{font-size:13px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-theme{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-date{font-size:11px;color:var(--muted)}
+.row-score{font-size:12px;font-weight:600;color:var(--teal)}
+.row-score.na{color:var(--muted);font-weight:400}
+
+/* ── 狀態標籤 ── */
+.status-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;white-space:nowrap}
+.s-suggested{background:rgba(59,130,246,.1);color:#1d4ed8}
+.s-draft{background:rgba(245,158,11,.12);color:#92400e}
+.s-approved{background:rgba(16,185,129,.12);color:#065f46}
+.s-filming{background:rgba(249,115,22,.12);color:#9a3412}
+.s-published{background:rgba(139,92,246,.12);color:#4c1d95}
+.s-tracking{background:rgba(13,148,136,.12);color:#134e4a}
+.type-badge{display:inline-flex;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700}
+.type-commerce{background:rgba(155,44,126,.1);color:var(--pink)}
+.type-traffic{background:rgba(13,148,136,.1);color:var(--teal)}
+
+/* ── 編輯器 ── */
+.script-editor{background:var(--off);border-top:1px solid var(--border);padding:24px 32px 24px 32px;animation:fadeIn .15s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.editor-top-row{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-start}
+.editor-input-group{display:flex;flex-direction:column;gap:4px}
+.editor-input-group label{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.editor-title-input{font-size:15px;font-weight:700;border:none;background:none;border-bottom:2px solid var(--border);padding:4px 0;color:var(--ink);font-family:var(--font);min-width:240px;outline:none;transition:border-color .2s}
+.editor-title-input:focus{border-bottom-color:var(--teal)}
+.editor-text-input{font-size:13px;border:none;background:none;border-bottom:1px solid var(--border);padding:4px 0;color:var(--ink);font-family:var(--font);min-width:160px;outline:none;transition:border-color .2s}
+.editor-text-input:focus{border-bottom-color:var(--teal)}
+.info-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.info-chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:5px 10px;font-size:12px;color:var(--ink)}
+.info-chip span{color:var(--muted);margin-right:4px}
+.full-script-wrap{position:relative;margin-bottom:14px}
+.full-script-wrap label{display:block;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.script-body{width:100%;min-height:200px;padding:14px 16px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);font-size:13px;line-height:1.8;color:var(--ink);background:var(--bg);outline:none;resize:vertical;white-space:pre-wrap;transition:border-color .2s}
+.script-body:focus{border-color:var(--teal)}
+.script-body:empty:before{content:attr(data-placeholder);color:var(--muted)}
+.editor-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.word-count{font-size:12px;color:var(--muted);margin-right:auto}
+.editor-footer .btn{font-size:12px;padding:5px 12px}
+.status-flow{display:flex;align-items:center;gap:6px;padding:10px 0 4px;font-size:12px;flex-wrap:wrap}
+.status-flow-label{color:var(--muted);margin-right:4px}
+.status-step{padding:4px 10px;border-radius:4px;border:1px solid var(--border);cursor:pointer;background:var(--bg);font-size:12px;font-weight:600;transition:all .15s}
+.status-step:hover{background:var(--hover)}
+.status-step.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.notes-area{margin-top:12px}
+.notes-area label{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+.notes-input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px;font-family:var(--font);font-size:12px;color:var(--ink);background:var(--bg);outline:none;resize:none;line-height:1.6}
+.notes-input:focus{border-color:var(--teal)}
+.video-link-row{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.video-link-row label{font-size:11px;color:var(--muted);white-space:nowrap}
+.video-id-input{padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:var(--font);color:var(--ink);outline:none;width:180px}
+.video-id-input:focus{border-color:var(--teal)}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:10px 18px;border-radius:6px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-box{background:var(--bg);border-radius:8px;padding:28px;width:420px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.15)}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:6px}
+.modal-sub{font-size:12px;color:var(--muted);margin-bottom:20px;line-height:1.6}
+.modal-field{margin-bottom:14px}
+.modal-field label{display:block;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.modal-field input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px;font-family:var(--font);font-size:13px;color:var(--ink);outline:none}
+.modal-field input:focus{border-color:var(--teal)}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+.modal-hint{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5}
+
+/* ── 提示複製框 ── */
+.prompt-box{background:var(--off);border:1px solid var(--border);border-radius:6px;padding:14px;font-size:12px;line-height:1.8;white-space:pre-wrap;max-height:300px;overflow-y:auto;word-break:break-all;margin:10px 0}
+
+/* ── mobile ── */
+@media(max-width:640px){
+  .sidebar{width:100%;height:auto;position:static;flex-direction:row;border-right:none;border-bottom:1px solid var(--border);overflow-x:auto}
+  .main{margin-left:0}
+  .script-list{padding:0 16px 60px}
+  .script-editor{padding:16px}
+  .page-header{padding:16px 16px 12px}
+  .list-header{display:none}
+  .row-main{grid-template-columns:1fr;gap:4px;padding:12px 10px}
+}
+</style>
+</head>
+<body>
+
+<!-- ── 側邊欄 ── -->
+<aside class="sidebar">
+  <div class="sidebar-logo"><span>✍️</span>腳本工作室</div>
+
+  <div class="sidebar-section">腳本狀態</div>
+  <div class="nav-item active" data-filter="all" onclick="setFilter('all',this)">📋 全部腳本<span class="nav-count" id="cnt-all">0</span></div>
+  <div class="nav-item" data-filter="suggested" onclick="setFilter('suggested',this)">💡 今日建議<span class="nav-count" id="cnt-suggested">0</span></div>
+  <div class="nav-item" data-filter="draft" onclick="setFilter('draft',this)">✏️ 草稿<span class="nav-count" id="cnt-draft">0</span></div>
+  <div class="nav-item" data-filter="approved" onclick="setFilter('approved',this)">✅ 確認<span class="nav-count" id="cnt-approved">0</span></div>
+  <div class="nav-item" data-filter="filming" onclick="setFilter('filming',this)">🎬 拍攝中<span class="nav-count" id="cnt-filming">0</span></div>
+  <div class="nav-item" data-filter="published" onclick="setFilter('published',this)">📹 已發布<span class="nav-count" id="cnt-published">0</span></div>
+  <div class="nav-item" data-filter="tracking" onclick="setFilter('tracking',this)">📊 追蹤中<span class="nav-count" id="cnt-tracking">0</span></div>
+
+  <div class="sidebar-footer">
+    <button class="sidebar-btn" onclick="syncFromGitHub()">☁ 從 GitHub 同步</button>
+    <button class="sidebar-btn" onclick="openSettings()">⚙ 設定</button>
+  </div>
+</aside>
+
+<!-- ── 主區域 ── -->
+<main class="main">
+  <div class="page-header">
+    <div class="page-title" id="pageTitle">全部腳本</div>
+    <div class="header-right">
+      <span class="header-count" id="headerCount">0 支</span>
+      <button class="btn btn-ghost" onclick="openPromptModal()">🤖 叫 Claude 生成</button>
+      <button class="btn btn-primary" onclick="addNewScript()">+ 新增腳本</button>
+    </div>
+  </div>
+
+  <div class="script-list">
+    <div class="list-header">
+      <div>狀態</div><div>片名</div><div>類型</div><div>主題</div><div>日期</div><div>成效分</div>
+    </div>
+    <div id="scriptList"><div class="empty-state"><div class="empty-icon">✍️</div><div class="empty-text">正在載入腳本…</div></div></div>
+  </div>
+</main>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast"></div>
+
+<!-- ── 設定 Modal ── -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-box">
+    <div class="modal-title">⚙ GitHub 設定</div>
+    <div class="modal-sub">設定後可直接從瀏覽器儲存到 GitHub。<br>Token 只存在你的瀏覽器，不會上傳到任何地方。</div>
+    <div class="modal-field">
+      <label>Personal Access Token</label>
+      <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxx">
+      <div class="modal-hint">GitHub → Settings → Developer settings → Personal access tokens → 勾選 repo → Generate</div>
+    </div>
+    <div class="modal-field">
+      <label>GitHub 使用者名稱</label>
+      <input type="text" id="ghOwner" placeholder="VitoKOK-lab">
+    </div>
+    <div class="modal-field">
+      <label>Repo 名稱</label>
+      <input type="text" id="ghRepo" placeholder="script-workshop">
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('settingsModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveSettings()">儲存設定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 叫 Claude 生成 Modal ── -->
+<div class="modal-overlay" id="promptModal">
+  <div class="modal-box" style="width:560px">
+    <div class="modal-title">🤖 複製提示給 Claude</div>
+    <div class="modal-sub">複製以下提示，貼到 Claude 對話，拿到 JSON 後點「貼上 Claude 回覆」。</div>
+    <div class="prompt-box" id="promptText"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('promptModal')">關閉</button>
+      <button class="btn btn-ghost" onclick="openPasteModal()">貼上 Claude 回覆</button>
+      <button class="btn btn-primary" onclick="copyPromptText()">複製提示</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 貼上 Claude 回覆 Modal ── -->
+<div class="modal-overlay" id="pasteModal">
+  <div class="modal-box" style="width:560px">
+    <div class="modal-title">📋 貼上 Claude 的 JSON 回覆</div>
+    <div class="modal-sub">把 Claude 回覆的 JSON 貼到下方，系統會自動解析並加入腳本庫。</div>
+    <textarea id="pasteArea" style="width:100%;height:200px;padding:10px;border:1px solid var(--border);border-radius:4px;font-family:monospace;font-size:12px;resize:vertical;outline:none" placeholder='{"scripts":[...]}'></textarea>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('pasteModal')">取消</button>
+      <button class="btn btn-primary" onclick="importFromPaste()">匯入腳本</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 常數 ──────────────────────────────────────────────────────────────────
+const STATUS = {
+  suggested: { icon:'💡', label:'今日建議', cls:'s-suggested' },
+  draft:     { icon:'✏️', label:'草稿',    cls:'s-draft' },
+  approved:  { icon:'✅', label:'確認',    cls:'s-approved' },
+  filming:   { icon:'🎬', label:'拍攝中',  cls:'s-filming' },
+  published: { icon:'📹', label:'已發布',  cls:'s-published' },
+  tracking:  { icon:'📊', label:'追蹤中',  cls:'s-tracking' },
+};
+const STATUS_FLOW = ['suggested','draft','approved','filming','published','tracking'];
+const TA_DESC = '受眾：35-55歲台灣女性，有消費力，關注家庭關係（婆媳/夫妻/親子）、時尚穿搭、精緻生活、情感共鳴、珠寶/能量寶石。';
+
+// ── 狀態 ──────────────────────────────────────────────────────────────────
+let DB = { version:'1.0', scripts:[] };
+let currentFilter = 'all';
+let expandedId = null;
+let unsaved = false;
+
+// ── 工具函數 ──────────────────────────────────────────────────────────────
+function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function countChars(s){ return (s||'').replace(/\s/g,'').length; }
+function genId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function showToast(msg, dur=2800){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), dur);
+}
+
+// ── 設定 ──────────────────────────────────────────────────────────────────
+function loadSettings(){
+  document.getElementById('ghToken').value = localStorage.getItem('gh_token')||'';
+  document.getElementById('ghOwner').value = localStorage.getItem('gh_owner')||'';
+  document.getElementById('ghRepo').value  = localStorage.getItem('gh_repo')||'';
+}
+function saveSettings(){
+  localStorage.setItem('gh_token', document.getElementById('ghToken').value.trim());
+  localStorage.setItem('gh_owner', document.getElementById('ghOwner').value.trim());
+  localStorage.setItem('gh_repo',  document.getElementById('ghRepo').value.trim());
+  closeModal('settingsModal');
+  showToast('✅ 設定已儲存');
+}
+function openSettings(){ loadSettings(); openModal('settingsModal'); }
+
+// ── Modal ─────────────────────────────────────────────────────────────────
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.addEventListener('click', function(e){
+  if(e.target.classList.contains('modal-overlay')) e.target.classList.remove('open');
+});
+
+// ── 載入資料 ──────────────────────────────────────────────────────────────
+async function syncFromGitHub(){
+  const owner = localStorage.getItem('gh_owner');
+  const repo  = localStorage.getItem('gh_repo');
+  if(!owner||!repo){ showToast('⚠️ 請先設定 GitHub 資訊'); openSettings(); return; }
+  showToast('☁ 同步中…');
+  try{
+    const url = `https://raw.githubusercontent.com/${owner}/${repo}/main/data/scripts.json?t=${Date.now()}`;
+    const r = await fetch(url);
+    if(!r.ok) throw new Error(r.status);
+    DB = await r.json();
+    localStorage.setItem('scripts_cache', JSON.stringify(DB));
+    renderAll();
+    showToast('✅ 同步完成');
+  } catch(e){
+    showToast('❌ 同步失敗：' + e.message);
+  }
+}
+
+function loadFromCache(){
+  const c = localStorage.getItem('scripts_cache');
+  if(c){ try{ DB = JSON.parse(c); }catch(_){} }
+  renderAll();
+}
+
+// ── 儲存到 GitHub ─────────────────────────────────────────────────────────
+async function saveToGitHub(){
+  const token = localStorage.getItem('gh_token');
+  const owner = localStorage.getItem('gh_owner');
+  const repo  = localStorage.getItem('gh_repo');
+  if(!token||!owner||!repo){ showToast('⚠️ 請先設定 GitHub Token'); openSettings(); return false; }
+  showToast('☁ 儲存中…');
+  try{
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/data/scripts.json`;
+    const headers = { 'Authorization':'token '+token, 'Accept':'application/vnd.github.v3+json' };
+    const getR = await fetch(apiUrl, {headers});
+    let sha = null;
+    if(getR.ok){ const fd = await getR.json(); sha = fd.sha; }
+    DB.updated_at = new Date().toISOString();
+    const content = JSON.stringify(DB, null, 2);
+    const encoded = btoa(unescape(encodeURIComponent(content)));
+    const body = { message:`scripts ${today()}`, content: encoded };
+    if(sha) body.sha = sha;
+    const putR = await fetch(apiUrl, { method:'PUT', headers:{...headers,'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if(!putR.ok){ const err=await putR.json(); throw new Error(err.message||putR.status); }
+    localStorage.setItem('scripts_cache', JSON.stringify(DB));
+    unsaved = false;
+    showToast('✅ 已儲存到 GitHub');
+    return true;
+  } catch(e){
+    showToast('❌ 儲存失敗：' + e.message);
+    return false;
+  }
+}
+
+// ── 渲染 ──────────────────────────────────────────────────────────────────
+function renderAll(){
+  updateCounts();
+  const scripts = getFiltered();
+  document.getElementById('headerCount').textContent = scripts.length + ' 支';
+
+  const titles = {all:'全部腳本',suggested:'💡 今日建議',draft:'✏️ 草稿',
+    approved:'✅ 確認',filming:'🎬 拍攝中',published:'📹 已發布',tracking:'📊 追蹤中'};
+  document.getElementById('pageTitle').textContent = titles[currentFilter]||'全部腳本';
+
+  if(!scripts.length){
+    document.getElementById('scriptList').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">'+
+      (currentFilter==='suggested'?'💡':'📋')+'</div><div class="empty-text">'+
+      (currentFilter==='suggested'?'今日尚無建議，等待每日自動生成或點「叫 Claude 生成」':'這個狀態還沒有腳本')+
+      '</div><div class="empty-sub">'+
+      (currentFilter==='all'?'點右上角「+ 新增腳本」開始':'')+'</div></div>';
+    return;
+  }
+  document.getElementById('scriptList').innerHTML = scripts.map(s=>renderRow(s)).join('');
+}
+
+function updateCounts(){
+  const all = DB.scripts||[];
+  document.getElementById('cnt-all').textContent = all.length;
+  Object.keys(STATUS).forEach(k=>{
+    const el = document.getElementById('cnt-'+k);
+    if(el) el.textContent = all.filter(s=>s.status===k).length;
+  });
+}
+
+function getFiltered(){
+  const s = DB.scripts||[];
+  return currentFilter==='all' ? s : s.filter(x=>x.status===currentFilter);
+}
+
+function setFilter(f, el){
+  currentFilter = f;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  expandedId = null;
+  renderAll();
+}
+
+function renderRow(s){
+  const st = STATUS[s.status]||STATUS['suggested'];
+  const isCom = s.type==='commerce';
+  const isExp = expandedId===s.id;
+  return `<div class="script-row" id="row-${s.id}">
+    <div class="row-main" onclick="toggleExpand('${s.id}')">
+      <span class="status-pill ${st.cls}">${st.icon} ${st.label}</span>
+      <span class="row-title">${escHtml(s.title)||'（未命名）'}</span>
+      <span class="type-badge ${isCom?'type-commerce':'type-traffic'}">${isCom?'帶貨':'流量'}</span>
+      <span class="row-theme">${escHtml(s.theme)||''}</span>
+      <span class="row-date">${s.created_at||''}</span>
+      <span class="row-score ${s.score?'':'na'}">${s.score?s.score+'分':'—'}</span>
+    </div>
+    ${isExp ? renderEditor(s) : ''}
+  </div>`;
+}
+
+function renderEditor(s){
+  const st = STATUS[s.status]||STATUS['suggested'];
+  return `<div class="script-editor">
+    <div class="editor-top-row">
+      <div class="editor-input-group">
+        <label>片名</label>
+        <input class="editor-title-input" value="${escHtml(s.title||'')}" placeholder="輸入片名…"
+               onchange="updateField('${s.id}','title',this.value)">
+      </div>
+      <div class="editor-input-group">
+        <label>主題</label>
+        <input class="editor-text-input" value="${escHtml(s.theme||'')}" placeholder="主題類別…"
+               onchange="updateField('${s.id}','theme',this.value)">
+      </div>
+      <div class="editor-input-group">
+        <label>類型</label>
+        <select class="editor-text-input" onchange="updateField('${s.id}','type',this.value)">
+          <option value="commerce" ${s.type==='commerce'?'selected':''}>帶貨型</option>
+          <option value="traffic"  ${s.type==='traffic'?'selected':''}>流量型</option>
+        </select>
+      </div>
+    </div>
+
+    ${s.hook?`<div class="info-strip"><div class="info-chip"><span>🎣 前3秒</span>${escHtml(s.hook)}</div></div>`:''}
+    ${s.outline?`<div class="info-strip"><div class="info-chip"><span>📋 大綱</span>${escHtml(s.outline)}</div></div>`:''}
+    ${s.why?`<div class="info-strip"><div class="info-chip"><span>💡</span>${escHtml(s.why)}</div></div>`:''}
+
+    <div class="full-script-wrap">
+      <label>完整腳本（可直接編輯）</label>
+      <div class="script-body" id="sb-${s.id}" contenteditable="true"
+           data-placeholder="貼上完整腳本（約500字）…或點下方「叫 Claude 寫完整腳本」"
+           oninput="onScriptEdit('${s.id}',this)">${escHtml(s.full_script||'')}</div>
+    </div>
+
+    <div class="editor-footer">
+      <span class="word-count" id="wc-${s.id}">${countChars(s.full_script)} 字</span>
+      <button class="btn btn-ghost" onclick="copyScriptText('${s.id}')">複製腳本</button>
+      <button class="btn btn-ghost" onclick="copyScriptPrompt('${s.id}')">🤖 叫 Claude 寫完整腳本</button>
+      <button class="btn btn-ghost" style="color:var(--warn)" onclick="deleteScript('${s.id}')">刪除</button>
+      <button class="btn btn-teal" onclick="saveToGitHub()">☁ 儲存</button>
+    </div>
+
+    <div class="status-flow">
+      <span class="status-flow-label">狀態：</span>
+      ${STATUS_FLOW.map(k=>`<span class="status-step ${s.status===k?'active':''}"
+        onclick="changeStatus('${s.id}','${k}')">${STATUS[k].icon} ${STATUS[k].label}</span>`).join('')}
+    </div>
+
+    <div class="video-link-row">
+      <label>連結影片 ID（發布後填入，自動追蹤成效）：</label>
+      <input class="video-id-input" value="${escHtml(s.video_id||'')}" placeholder="例：123456789"
+             onchange="updateField('${s.id}','video_id',this.value||null)">
+      ${s.plays!=null?`<span style="font-size:12px;color:var(--teal)">📊 ${s.plays?.toLocaleString()} 播 · ${s.score}分</span>`:''}
+    </div>
+
+    <div class="notes-area">
+      <label>備注</label>
+      <textarea class="notes-input" rows="2" placeholder="拍攝提醒、修改紀錄…"
+                onchange="updateField('${s.id}','notes',this.value)">${escHtml(s.notes||'')}</textarea>
+    </div>
+  </div>`;
+}
+
+// ── 互動邏輯 ──────────────────────────────────────────────────────────────
+function toggleExpand(id){
+  expandedId = expandedId===id ? null : id;
+  renderAll();
+  if(expandedId){
+    setTimeout(()=>{
+      const el = document.getElementById('row-'+id);
+      if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'});
+    },80);
+  }
+}
+
+function updateField(id, field, val){
+  const s = DB.scripts.find(x=>x.id===id);
+  if(!s) return;
+  s[field] = val;
+  unsaved = true;
+  updateCounts();
+}
+
+function onScriptEdit(id, el){
+  const s = DB.scripts.find(x=>x.id===id);
+  if(!s) return;
+  s.full_script = el.innerText;
+  const wc = document.getElementById('wc-'+id);
+  if(wc) wc.textContent = countChars(s.full_script) + ' 字';
+  if(s.status==='suggested') s.status='draft';
+  unsaved = true;
+}
+
+function changeStatus(id, newStatus){
+  const s = DB.scripts.find(x=>x.id===id);
+  if(!s) return;
+  s.status = newStatus;
+  unsaved = true;
+  expandedId = id;
+  renderAll();
+}
+
+function addNewScript(){
+  const s = {
+    id: genId(), created_at: today(), title:'', theme:'',
+    type:'traffic', hook:'', outline:'', why:'',
+    full_script:'', status:'draft', video_id:null,
+    platform:null, published_at:null, notes:'', tags:[],
+    score:null, plays:null
+  };
+  DB.scripts.unshift(s);
+  expandedId = s.id;
+  currentFilter = 'all';
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector('[data-filter="all"]').classList.add('active');
+  renderAll();
+  setTimeout(()=>{
+    const el = document.querySelector(`#row-${s.id} .editor-title-input`);
+    if(el) el.focus();
+  },80);
+}
+
+function deleteScript(id){
+  if(!confirm('確定要刪除這支腳本嗎？')) return;
+  DB.scripts = DB.scripts.filter(s=>s.id!==id);
+  expandedId = null;
+  unsaved = true;
+  renderAll();
+  showToast('已刪除');
+}
+
+function copyScriptText(id){
+  const s = DB.scripts.find(x=>x.id===id);
+  if(!s||!s.full_script){ showToast('腳本是空的'); return; }
+  navigator.clipboard.writeText(s.full_script).then(()=>showToast('✅ 腳本已複製'));
+}
+
+function copyScriptPrompt(id){
+  const s = DB.scripts.find(x=>x.id===id);
+  const prompt = `你是一位專業的短影音腳本總編輯。
+
+${TA_DESC}
+
+以下是這支影片的基本資訊：
+片名：${s.title||'（未命名）'}
+主題：${s.theme||'—'}
+類型：${s.type==='commerce'?'帶貨型':'流量型'}
+前3秒鉤子：${s.hook||'—'}
+內容大綱：${s.outline||'—'}
+
+請幫我寫出完整的腳本（約500字），格式要求：
+1. 白話、生活化，可以直接用於短影片拍攝
+2. 包含：開場（前3秒抓眼球）、主要內容（場景+台詞）、結尾行動呼籲
+3. 標明每個場景的畫面描述和台詞
+4. 不要加任何說明，直接輸出腳本正文`;
+  navigator.clipboard.writeText(prompt).then(()=>showToast('✅ 提示已複製，貼到 Claude 對話'));
+}
+
+// ── 叫 Claude 生成（整批10支） ────────────────────────────────────────────
+function buildBatchPrompt(){
+  const topScripts = (DB.scripts||[])
+    .filter(s=>s.status==='tracking'&&s.score)
+    .sort((a,b)=>(b.score||0)-(a.score||0)).slice(0,5);
+
+  const ref = topScripts.length
+    ? topScripts.map(s=>`· ${s.title} | ${s.score}分 | ${s.plays?.toLocaleString()}播`).join('\n')
+    : '（尚無成效資料）';
+
+  return `你是泰熙爾珠寶品牌的短影音腳本總編輯。
+
+${TA_DESC}
+
+過去高分腳本參考：
+${ref}
+
+今日日期：${today()}
+
+請生成10支今日短影片腳本建議（30-90秒）。
+不一定要跟珠寶直接相關，只要是同樣TA有興趣的話題都可以。
+每支都要有讓人忍不住繼續看的「前3秒鉤子」。
+
+回傳格式（純JSON，不要加markdown或說明）：
+{"scripts":[{"title":"片名（15字內）","theme":"主題","type":"commerce或traffic","hook":"前3秒鉤子（20字內）","outline":"開場→中段→結尾（各一句）","why":"為什麼現在拍這個有效（20字）"}]}`;
+}
+
+function openPromptModal(){
+  document.getElementById('promptText').textContent = buildBatchPrompt();
+  openModal('promptModal');
+}
+
+function copyPromptText(){
+  const txt = document.getElementById('promptText').textContent;
+  navigator.clipboard.writeText(txt).then(()=>showToast('✅ 提示已複製'));
+}
+
+function openPasteModal(){ closeModal('promptModal'); openModal('pasteModal'); }
+
+function importFromPaste(){
+  const raw = document.getElementById('pasteArea').value.trim();
+  let parsed;
+  try{ parsed = JSON.parse(raw); } catch(e){ showToast('❌ 格式錯誤，請貼上純 JSON'); return; }
+  const list = parsed.scripts||parsed;
+  if(!Array.isArray(list)||!list.length){ showToast('❌ 找不到腳本陣列'); return; }
+  const existIds = new Set((DB.scripts||[]).map(s=>s.id));
+  const newEntries = list.map((s,i)=>{
+    const id = genId();
+    return {
+      id, created_at: today(),
+      title: s.title||'', theme: s.theme||'', type: s.type||'traffic',
+      hook: s.hook||'', outline: s.outline||'', why: s.why||'',
+      full_script:'', status:'suggested', video_id:null,
+      platform:null, published_at:null, notes:'', tags:[],
+      score:null, plays:null
+    };
+  });
+  DB.scripts = [...newEntries, ...DB.scripts];
+  closeModal('pasteModal');
+  document.getElementById('pasteArea').value='';
+  currentFilter='suggested';
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector('[data-filter="suggested"]').classList.add('active');
+  renderAll();
+  showToast(`✅ 匯入 ${newEntries.length} 支腳本建議`);
+  unsaved = true;
+}
+
+// ── 初始化 ────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', ()=>{
+  loadFromCache();
+  // 有設定的話自動同步
+  if(localStorage.getItem('gh_owner') && localStorage.getItem('gh_repo')){
+    syncFromGitHub();
+  }
+});
+
+window.addEventListener('beforeunload', e=>{
+  if(unsaved){ e.preventDefault(); e.returnValue=''; }
+});
+</script>
+</body>
+</html>
