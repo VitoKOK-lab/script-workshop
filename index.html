@@ -79,6 +79,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
 /* ── 狀態標籤 ── */
 .status-pill{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:4px;font-size:13px;font-weight:700;white-space:nowrap}
 .s-suggested{background:rgba(59,130,246,.1);color:#1d4ed8}
+.s-reserve{background:rgba(148,163,184,.12);color:#475569}
 .s-draft{background:rgba(245,158,11,.12);color:#92400e}
 .s-approved{background:rgba(16,185,129,.12);color:#065f46}
 .s-filming{background:rgba(249,115,22,.12);color:#9a3412}
@@ -87,6 +88,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
 .type-badge{display:inline-flex;padding:3px 9px;border-radius:3px;font-size:12px;font-weight:700}
 .type-commerce{background:rgba(155,44,126,.1);color:var(--pink)}
 .type-traffic{background:rgba(13,148,136,.1);color:var(--teal)}
+
+/* ── 快速操作按鈕（建議/備選行） ── */
+.row-actions{display:flex;gap:6px;align-items:center;margin-left:8px;opacity:0;transition:opacity .15s;flex-shrink:0}
+.script-row:hover .row-actions{opacity:1}
+.qa-btn{padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg);font-family:var(--font);transition:all .15s;white-space:nowrap}
+.qa-btn:hover{background:var(--hover)}
+.qa-btn.qa-reserve{color:#475569;border-color:rgba(148,163,184,.4)}
+.qa-btn.qa-reserve:hover{background:rgba(148,163,184,.1)}
+.qa-btn.qa-reject{color:var(--warn);border-color:rgba(190,58,103,.25)}
+.qa-btn.qa-reject:hover{background:rgba(190,58,103,.07)}
 
 /* ── 編輯器 ── */
 .script-editor{background:var(--off);border-top:1px solid var(--border);padding:24px 32px 24px 32px;animation:fadeIn .15s ease}
@@ -164,6 +175,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
   <div class="sidebar-section">腳本狀態</div>
   <div class="nav-item active" data-filter="all" onclick="setFilter('all',this)">📋 全部腳本<span class="nav-count" id="cnt-all">0</span></div>
   <div class="nav-item" data-filter="suggested" onclick="setFilter('suggested',this)">💡 今日建議<span class="nav-count" id="cnt-suggested">0</span></div>
+  <div class="nav-item" data-filter="reserve" onclick="setFilter('reserve',this)">🗂 備選<span class="nav-count" id="cnt-reserve">0</span></div>
   <div class="nav-item" data-filter="draft" onclick="setFilter('draft',this)">✏️ 草稿<span class="nav-count" id="cnt-draft">0</span></div>
   <div class="nav-item" data-filter="approved" onclick="setFilter('approved',this)">✅ 確認<span class="nav-count" id="cnt-approved">0</span></div>
   <div class="nav-item" data-filter="filming" onclick="setFilter('filming',this)">🎬 拍攝中<span class="nav-count" id="cnt-filming">0</span></div>
@@ -255,13 +267,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
 // ── 常數 ──────────────────────────────────────────────────────────────────
 const STATUS = {
   suggested: { icon:'💡', label:'今日建議', cls:'s-suggested' },
+  reserve:   { icon:'🗂', label:'備選',     cls:'s-reserve' },
   draft:     { icon:'✏️', label:'草稿',    cls:'s-draft' },
   approved:  { icon:'✅', label:'確認',    cls:'s-approved' },
   filming:   { icon:'🎬', label:'拍攝中',  cls:'s-filming' },
   published: { icon:'📹', label:'已發布',  cls:'s-published' },
   tracking:  { icon:'📊', label:'追蹤中',  cls:'s-tracking' },
 };
-const STATUS_FLOW = ['suggested','draft','approved','filming','published','tracking'];
+const STATUS_FLOW = ['suggested','reserve','draft','approved','filming','published','tracking'];
 const TA_DESC = '受眾：35-55歲台灣女性，有消費力，關注家庭關係（婆媳/夫妻/親子）、時尚穿搭、精緻生活、情感共鳴、珠寶/能量寶石。';
 
 // ── 狀態 ──────────────────────────────────────────────────────────────────
@@ -411,8 +424,8 @@ function renderAll(){
   const scripts = getFiltered();
   document.getElementById('headerCount').textContent = scripts.length + ' 支';
 
-  const titles = {all:'全部腳本',suggested:'💡 今日建議',draft:'✏️ 草稿',
-    approved:'✅ 確認',filming:'🎬 拍攝中',published:'📹 已發布',tracking:'📊 追蹤中'};
+  const titles = {all:'全部腳本',suggested:'💡 今日建議',reserve:'🗂 備選',
+    draft:'✏️ 草稿',approved:'✅ 確認',filming:'🎬 拍攝中',published:'📹 已發布',tracking:'📊 追蹤中'};
   document.getElementById('pageTitle').textContent = titles[currentFilter]||'全部腳本';
 
   if(!scripts.length){
@@ -453,14 +466,23 @@ function renderRow(s){
   const st = STATUS[s.status]||STATUS['suggested'];
   const isCom = s.type==='commerce';
   const isExp = expandedId===s.id;
+  const showQA = (s.status==='suggested'||s.status==='reserve');
+  const qaHtml = showQA ? `
+    <div class="row-actions" onclick="event.stopPropagation()">
+      ${s.status==='suggested'
+        ? `<button class="qa-btn qa-reserve" onclick="moveToReserve('${s.id}')">🗂 備選</button>`
+        : `<button class="qa-btn qa-reserve" onclick="changeStatus('${s.id}','suggested')">💡 回建議</button>`}
+      <button class="qa-btn qa-reject" onclick="rejectScript('${s.id}')">❌ 不適合</button>
+    </div>` : '';
   return `<div class="script-row" id="row-${s.id}">
-    <div class="row-main" onclick="toggleExpand('${s.id}')">
+    <div class="row-main" onclick="toggleExpand('${s.id}')" style="grid-template-columns:130px 1fr 90px 120px 90px 70px ${showQA?'auto':''}">
       <span class="status-pill ${st.cls}">${st.icon} ${st.label}</span>
       <span class="row-title">${escHtml(s.title)||'（未命名）'}</span>
       <span class="type-badge ${isCom?'type-commerce':'type-traffic'}">${isCom?'帶貨':'流量'}</span>
       <span class="row-theme">${escHtml(s.theme)||''}</span>
       <span class="row-date">${s.created_at||''}</span>
       <span class="row-score ${s.score?'':'na'}">${s.score?s.score+'分':'—'}</span>
+      ${qaHtml}
     </div>
     ${isExp ? renderEditor(s) : ''}
   </div>`;
@@ -586,6 +608,37 @@ function addNewScript(){
     const el = document.querySelector(`#row-${s.id} .editor-title-input`);
     if(el) el.focus();
   },80);
+}
+
+function moveToReserve(id){
+  const s = DB.scripts.find(x=>x.id===id);
+  if(!s) return;
+  s.status = 'reserve';
+  unsaved = true;
+  renderAll();
+  showToast('🗂 已移到備選');
+}
+
+function rejectScript(id){
+  const s = DB.scripts.find(x=>x.id===id);
+  if(!s) return;
+  if(!confirm(`確定要標記「${s.title||'此腳本'}」為不適合嗎？\n系統會記住這個方向，未來避免類似腳本。`)) return;
+  // 記錄到 rejects
+  if(!DB.rejects) DB.rejects = [];
+  DB.rejects.push({
+    title:       s.title||'',
+    theme:       s.theme||'',
+    hook:        s.hook||'',
+    rejected_at: today(),
+  });
+  // 最多保留 50 筆學習記錄
+  if(DB.rejects.length > 50) DB.rejects = DB.rejects.slice(-50);
+  DB.scripts = DB.scripts.filter(x=>x.id!==id);
+  expandedId = null;
+  unsaved = true;
+  renderAll();
+  saveToGitHub();
+  showToast('❌ 已記錄，AI 將避免類似方向');
 }
 
 function deleteScript(id){
