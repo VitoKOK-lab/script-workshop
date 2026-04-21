@@ -278,6 +278,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);display:flex;
       <input type="text" id="ghRepo" placeholder="script-workshop">
     </div>
     <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="copyInvite()" style="color:var(--teal)">📲 複製邀請給同事</button>
       <button class="btn btn-ghost" onclick="closeModal('settingsModal')">取消</button>
       <button class="btn btn-primary" onclick="saveSettings()">儲存設定</button>
     </div>
@@ -356,6 +357,28 @@ function saveSettings(){
   showToast('✅ 設定已儲存');
 }
 function openSettings(){ loadSettings(); openModal('settingsModal'); }
+
+function copyInvite(){
+  const token = localStorage.getItem('gh_token') || '（請向管理員索取）';
+  const msg =
+`✍️ 腳本工作室 — 同事設定說明
+
+📱 網址：https://vitokok-lab.github.io/script-workshop/
+
+設定步驟（只需做一次）：
+1. 打開上方網址
+2. 點左側 ⚙ 設定 按鈕
+3. 在「Personal Access Token」欄位貼上：
+   ${token}
+4. 按「儲存設定」
+
+完成後即可瀏覽、編輯、儲存所有腳本。
+注意：請勿同時和他人編輯同一支腳本。`;
+  navigator.clipboard.writeText(msg).then(()=>{
+    closeModal('settingsModal');
+    showToast('📲 邀請說明已複製，可直接傳給同事');
+  });
+}
 
 // ── Modal ─────────────────────────────────────────────────────────────────
 function openModal(id){ document.getElementById(id).classList.add('open'); }
