@@ -128,6 +128,7 @@ def make_script_entry(idx, s, today):
 def main():
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     token = os.environ.get("GITHUB_TOKEN", "")
+    force = os.environ.get("FORCE_REGEN", "").lower() == "true"
 
     # 載入現有資料庫
     try:
@@ -135,6 +136,13 @@ def main():
             db = json.load(f)
     except Exception:
         db = {"version": "1.0", "scripts": []}
+
+    # 強制模式：清除今日已有建議
+    if force:
+        before = len(db["scripts"])
+        db["scripts"] = [s for s in db["scripts"]
+                         if not (s.get("created_at") == today and s.get("status") == "suggested")]
+        print(f"[FORCE] 已清除 {before - len(db['scripts'])} 支今日建議，強制重新生成")
 
     # 今天已有建議就跳過
     existing_today = [s for s in db["scripts"] if s.get("created_at") == today and s.get("status") == "suggested"]
