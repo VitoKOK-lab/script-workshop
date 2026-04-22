@@ -1,4 +1,65 @@
 {
-  "updated_at": "",
-  "entries": []
+  "updated_at": "2026-04-22T01:22:57.263912+00:00",
+  "entries": [
+    {
+      "date": "2026-04-22",
+      "sources": [
+        "Google Trends TW"
+      ],
+      "topics": [
+        "金寶股價",
+        "威盛",
+        "6182",
+        "ai",
+        "林襄",
+        "吳卓源",
+        "穎崴",
+        "鄧愷威",
+        "gpt image 2",
+        "瑞昱"
+      ],
+      "items": [
+        {
+          "source": "Google Trends TW",
+          "title": "金寶股價"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "威盛"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "6182"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "ai"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "林襄"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "吳卓源"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "穎崴"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "鄧愷威"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "gpt image 2"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "瑞昱"
+        }
+      ]
+    }
+  ]
 }
