@@ -1,6 +1,66 @@
 {
-  "updated_at": "2026-04-22T01:22:57.263912+00:00",
+  "updated_at": "2026-04-23T01:28:08.148625+00:00",
   "entries": [
+    {
+      "date": "2026-04-23",
+      "sources": [
+        "Google Trends TW"
+      ],
+      "topics": [
+        "華通",
+        "台虹",
+        "永光",
+        "聯發科股價",
+        "零股交易時間",
+        "2351",
+        "三晃",
+        "宇瞻",
+        "8028",
+        "3081"
+      ],
+      "items": [
+        {
+          "source": "Google Trends TW",
+          "title": "華通"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "台虹"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "永光"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "聯發科股價"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "零股交易時間"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "2351"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "三晃"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "宇瞻"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "8028"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "3081"
+        }
+      ]
+    },
     {
       "date": "2026-04-22",
       "sources": [
