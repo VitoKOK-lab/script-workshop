@@ -1,6 +1,66 @@
 {
-  "updated_at": "2026-04-25T01:20:35.255095+00:00",
+  "updated_at": "2026-04-26T01:30:09.482642+00:00",
   "entries": [
+    {
+      "date": "2026-04-26",
+      "sources": [
+        "Google Trends TW"
+      ],
+      "topics": [
+        "cnn",
+        "道奇 對 小熊",
+        "金慧成",
+        "美 超 微電腦 股份 有限 公司",
+        "佐佐木朗希",
+        "綠色博覽會",
+        "群創光電",
+        "灰狼 對 金塊",
+        "top",
+        "彗星"
+      ],
+      "items": [
+        {
+          "source": "Google Trends TW",
+          "title": "cnn"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "道奇 對 小熊"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "金慧成"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "美 超 微電腦 股份 有限 公司"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "佐佐木朗希"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "綠色博覽會"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "群創光電"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "灰狼 對 金塊"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "top"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "彗星"
+        }
+      ]
+    },
     {
       "date": "2026-04-25",
       "sources": [
