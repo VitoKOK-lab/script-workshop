@@ -1,6 +1,66 @@
 {
-  "updated_at": "2026-04-26T01:30:09.482642+00:00",
+  "updated_at": "2026-04-27T01:30:43.802075+00:00",
   "entries": [
+    {
+      "date": "2026-04-27",
+      "sources": [
+        "Google Trends TW"
+      ],
+      "topics": [
+        "台積電",
+        "00981a",
+        "火箭 對 湖人",
+        "南亞科股價",
+        "2308",
+        "中鋼股價",
+        "台泥股價",
+        "瑞儀",
+        "緯穎股價",
+        "亞光"
+      ],
+      "items": [
+        {
+          "source": "Google Trends TW",
+          "title": "台積電"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "00981a"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "火箭 對 湖人"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "南亞科股價"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "2308"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "中鋼股價"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "台泥股價"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "瑞儀"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "緯穎股價"
+        },
+        {
+          "source": "Google Trends TW",
+          "title": "亞光"
+        }
+      ]
+    },
     {
       "date": "2026-04-26",
       "sources": [
